@@ -74,7 +74,43 @@
 			]]>
          </SQL>
       </Command>
+	  
+	  <Command id="exasol.getVirtualSchemaProperties">
+         <SQL>
+            <![CDATA[
+				select SCHEMA_NAME 'Schema name',
+				PROPERTY_NAME 'Property name',
+				PROPERTY_VALUE 'Property value'
 
+				from EXA_ALL_VIRTUAL_SCHEMA_PROPERTIES
+				WHERE
+				SCHEMA_NAME = '${schema}'
+			]]>
+         </SQL>
+      </Command>
+	  
+	 <Command id="exasol.getVirtualSchemaDDL">
+         <SQL>
+            <![CDATA[
+				select 
+
+				'CREATE VIRTUAL SCHEMA ' || s.SCHEMA_NAME || ' USING ' || ADAPTER_SCRIPT || '
+WITH 
+
+' || GROUP_CONCAT(PROPERTY_NAME || ' = ''' || PROPERTY_VALUE || '''' ORDER BY PROPERTY_NAME SEPARATOR '
+') || ';
+				' AS 'TEXT'
+
+				from
+				EXA_VIRTUAL_SCHEMAS s
+				join
+				EXA_ALL_VIRTUAL_SCHEMA_PROPERTIES p using (schema_object_id)
+				where s.schema_name = '${schema}'
+				group by s.schema_name, adapter_script;
+			]]>
+         </SQL>
+      </Command>
+	  
 	  <Command id="exasol.getSchema">
          <SQL>
             <![CDATA[
@@ -454,7 +490,6 @@ COMMENT IS ''' || atab.TABLE_COMMENT || '''' else '' end || ';
 			USER_NAME 'Name',
 			CREATED  'Created',
 			DISTINGUISHED_NAME 'Distinguished name',
-			PASSWORD 'Password',
 			USER_PRIORITY 'User Priority',
 			USER_COMMENT 'Comment'
 			FROM
@@ -477,7 +512,52 @@ COMMENT IS ''' || atab.TABLE_COMMENT || '''' else '' end || ';
          </SQL>
       </Command>
 
-	  
+	  <Command id="exasol.getRecursiveRolesOfUser">
+        <SQL>
+            
+		<If test="#SUPERUSER">
+			<![CDATA[
+			select
+				CONNECT_BY_ROOT(GRANTEE) as 'Grantee',
+				GRANTED_ROLE 'Granted Role', 
+				ADMIN_OPTION 'Admin Options',
+				CONNECT_BY_ROOT(GRANTEE) || SYS_CONNECT_BY_PATH(GRANTED_ROLE, ' <- ') as 'Grant path'
+			from exa_dba_role_privs
+			connect by GRANTEE = prior GRANTED_ROLE
+			start with GRANTEE in ('${objectname}')
+			]]>
+		</If>
+		<Else>
+			<![CDATA[
+			select 
+			GRANTEE 'Grantee',
+			GRANTED_ROLE 'Granted Role',
+			ADMIN_OPTION 'Admin Option',
+			GRANTEE||' <- '||GRANTED_ROLE as 'Grant path'
+			from
+			EXA_USER_ROLE_PRIVS
+			WHERE GRANTEE = '${objectname}'
+
+			union all
+
+			select
+			  CONNECT_BY_ROOT(RR.GRANTEE) as 'Grantee',
+			  RR.GRANTED_ROLE  'Granted Role',
+			  RR.ADMIN_OPTION 'Admin Options',
+			  CONNECT_BY_ROOT(RR.GRANTEE) || SYS_CONNECT_BY_PATH(RR.GRANTED_ROLE, ' <- ') as 'Grant path'
+
+			from exa_role_role_privs RR
+			left join EXA_USER_ROLE_PRIVS UR
+			  on UR.GRANTED_ROLE = RR.GRANTEE
+
+			connect by RR.GRANTEE = prior RR.GRANTED_ROLE
+			start with UR.GRANTEE = '${objectname}' /*or UR.GRANTEE is null*/
+            ]]>
+		</Else>	
+			
+         </SQL>
+      </Command>
+
 	 <Command id="exasol.getConnections">
         <SQL>
             
@@ -524,18 +604,38 @@ COMMENT IS ''' || atab.TABLE_COMMENT || '''' else '' end || ';
       </Command>
 
       <Command id="exasol.getUsersFromRole">
-         <SQL>
+		
+        <SQL>
+		 
+		<If test="#SUPERUSER">
             <![CDATA[
-			SELECT
-			GRANTEE 'Grantee',
-			GRANTED_ROLE 'Granted Role',
-			ADMIN_OPTION 'Admin Option'
-			FROM
-			EXA_USER_ROLE_PRIVS
-			WHERE 
-			GRANTED_ROLE like '%${objectname}%'
+				SELECT
+				GRANTEE 'Grantee',
+				GRANTED_ROLE 'Granted Role',
+				ADMIN_OPTION 'Admin Option'
+				FROM
+				EXA_DBA_ROLE_PRIVS
+				WHERE 
+				GRANTED_ROLE like '%${objectname}%'
+				
 			]]>
-         </SQL>
+		</If>
+		<Else>
+			<![CDATA[
+				SELECT
+				GRANTEE 'Grantee',
+				GRANTED_ROLE 'Granted Role',
+				ADMIN_OPTION 'Admin Option'
+				FROM
+				EXA_USER_ROLE_PRIVS
+				WHERE 
+				GRANTED_ROLE like '%${objectname}%'
+				
+			]]>
+		</Else>
+		
+        </SQL>
+		 
       </Command>
 
       <!-- ================================================================= -->
@@ -1383,7 +1483,7 @@ REGEXP_REPLACE(SCRIPT_TEXT,'^CREATE ','CREATE /*OR REPLACE*/ ') || '
             <Command>
                <SQL>
                   <![CDATA[
-                  create schema ${QB}${newSchema}${QB}
+                  CREATE SCHEMA ${QB}${newSchema}${QB}
                   ]]></SQL>
             </Command>
             <Confirm>Create schema ${newSchema}?</Confirm>
@@ -1403,7 +1503,7 @@ REGEXP_REPLACE(SCRIPT_TEXT,'^CREATE ','CREATE /*OR REPLACE*/ ') || '
 				</Values>
 			  </Input>
             <Command>
-               <SQL><![CDATA[alter schema "${schema}" change owner ${QB}"${newOwner}"${QB}]]></SQL>
+               <SQL><![CDATA[ALTER SCHEMA "${schema}" CHANGE OWNER ${QB}"${newOwner}"${QB}]]></SQL>
             </Command>
             <Confirm>
                Confirm owner of schema ${objectname} to ${newOwner}?
@@ -1419,7 +1519,7 @@ REGEXP_REPLACE(SCRIPT_TEXT,'^CREATE ','CREATE /*OR REPLACE*/ ') || '
             </Input>
             <Input label="Comment" name="comment" style="text"/>
             <Command>
-               <SQL><![CDATA[comment on schema "${schema}" is '${comment}']]></SQL>
+               <SQL><![CDATA[COMMENT ON SCHEMA "${schema}" IS '${comment}']]></SQL>
             </Command>
             <Confirm>
                Confirm comment on schema ${objectname}?
@@ -1435,7 +1535,7 @@ REGEXP_REPLACE(SCRIPT_TEXT,'^CREATE ','CREATE /*OR REPLACE*/ ') || '
             </Input>
             <Input label="New Schema Name" name="newSchema" style="text"/>
             <Command>
-               <SQL><![CDATA[rename "${schema}" to ${QB}${newSchema}${QE}]]></SQL>
+               <SQL><![CDATA[RENAME "${schema}" TO ${QB}${newSchema}${QE}]]></SQL>
             </Command>
             <Confirm>
                Confirm rename of schema ${objectname} to ${newSchema}?
@@ -1451,12 +1551,12 @@ REGEXP_REPLACE(SCRIPT_TEXT,'^CREATE ','CREATE /*OR REPLACE*/ ') || '
                <Default>${schema}</Default>
             </Input>
             <Input label="Cascade Objects" name="cascade" style="check">
-               <Values>cascade</Values>
+               <Values>CASCADE</Values>
             </Input>
             <Command>
                <SQL>
                   <![CDATA[
-                  drop schema "${schema}" ${cascade}
+                  DROP SCHEMA "${schema}" ${cascade}
                   ]]></SQL>
             </Command>
             <Confirm>
@@ -1514,7 +1614,7 @@ REGEXP_REPLACE(SCRIPT_TEXT,'^CREATE ','CREATE /*OR REPLACE*/ ') || '
 				</Values>
 			  </Input>
             <Command>
-               <SQL><![CDATA[ALTER SCHEMA "${schema}" CHANGE OWNER ${QB}"${newOwner}"${QB}]]></SQL>
+               <SQL><![CDATA[ALTER VIRTUAL SCHEMA "${schema}" CHANGE OWNER ${QB}"${newOwner}"${QB}]]></SQL>
             </Command>
             <Confirm>
                Confirm owner of schema ${objectname} to ${newOwner}?
@@ -1989,90 +2089,13 @@ AS LANGUAGE '${language}' NAME '${factoryFunction}' LIBRARY ${libraryName} ${fen
          <If test="#SUPERUSER">
             <Action id="exasol-users-add" label="Create User" reload="true" icon="add">
                <Input label="User Name" name="username" style="text"/>
-               <Input label="Locked" name="locked" style="check">
-                  <Values>LOCK</Values>
-               </Input>
-               <Input label="Password" name="password" style="password" linebreak="false"/>
-               <Input label="Expired" name="expired" style="check" linebreak="true">
-                  <Values>PASSWORD EXPIRE</Values>
-               </Input>
-               <Input label="Profile" name="profile" style="list">
-                  <Values>
-                     <Command>
-                        <SQL>
-                           <![CDATA[select profile_name from profiles order by 1]]></SQL>
-                     </Command>
-                  </Values>
-               </Input>
-               <Input label="Resource Pool" name="pool" style="list">
-                  <Values>
-                     <Command>
-                        <SQL>
-                           <![CDATA[select name from resource_pools order by 1]]></SQL>
-                     </Command>
-                  </Values>
-                  <Default>general</Default>
-               </Input>
 
-               <!--Memory Cap-->
-               <Input label="Memory Cap" name="memcap" style="radio" linebreak="false">
-                  <Values>NONE|VALUE</Values>
-                  <Labels>Unlimited|Value</Labels>
-                  <Default>NONE</Default>
-               </Input>
-               <Input label="Value" name="memcapvalue" style="text" linebreak="false"
-                       tip="Limits the amount of memory that the user's requests can use. This value is a number representing the amount of space, followed by a unit">
-               </Input>
-               <Input name="memcapunit" style="list" linebreak="true">
-                  <Values>K|M|G|T|%</Values>
-                  <Labels>KB|MB|GB|TB|%</Labels>
-                  <Default>K</Default>
-               </Input>
-
-               <!--Temp Space Cap-->
-               <Input label="Temp Space Cap" name="tempspacecap" style="radio" linebreak="false">
-                  <Values>NONE|VALUE</Values>
-                  <Labels>Unlimited|Value</Labels>
-                  <Default>NONE</Default>
-               </Input>
-               <Input label="Value" name="tempspacecapvalue" style="text" linebreak="false"
-                       tip="Limits the amount of temporary file storage the user's requests can use. This parameter's value has the same format as the Memory Cap value">
-               </Input>
-               <Input name="tempspacecapunit" style="list" linebreak="true">
-                  <Values>K|M|G|T|%</Values>
-                  <Labels>KB|MB|GB|TB|%</Labels>
-                  <Default>K</Default>
-               </Input>
-
-               <!--Runtime Cap-->
-               <Input label="Runtime Cap" name="runtimecap" style="radio" linebreak="false">
-                  <Values>NONE|VALUE</Values>
-                  <Labels>Unlimited|Value</Labels>
-                  <Default>NONE</Default>
-               </Input>
-               <Input label="Value" name="runtimecapvalue" style="text" linebreak="true"
-                       tip="Sets the maximum amount of time any of the user's queries can execute. Value is an interval, such as '1 minute', '100 seconds' or hours:minutes">
-               </Input>
-
-               <SetVar name="_memcap" value='#memcap.equals("NONE") ? "NONE" : "&#39;" + #memcapvalue + #memcapunit + "&#39;"'/>
-               <SetVar name="_tempspacecap" value='#tempspacecap.equals("NONE") ? "NONE" : "&#39;" + #tempspacecapvalue + #tempspacecapunit + "&#39;"'/>
-               <SetVar name="_runtimecap" value='#runtimecap.equals("NONE") ? "NONE" : "&#39;" + #runtimecapvalue + "&#39;"'/>
-
-               <SetVar name="_locked" value='#locked.equals("") ? "UNLOCK" : #locked'/>
-               <SetVar name="_password" value='#password.equals("") ? "" : " IDENTIFIED BY \"" +#password + "\""'/>
-               <SetVar name="_expired" value='#expired.equals("") ? "" : #expired'/>
-
+               <Input label="Password" name="password" style="password" />
+               			   
                <Command>
                   <SQL>
                      <![CDATA[
-CREATE USER ${QB}${username}${QE}
-ACCOUNT ${_locked} ${_expired}
-IDENTIFIED BY '${password}'
-PROFILE ${profile}
-RESOURCE POOL ${pool}
-MEMORYCAP ${_memcap}
-TEMPSPACECAP ${_tempspacecap}
-RUNTIMECAP ${_runtimecap}
+CREATE USER ${QB}"${username}"${QE} IDENTIFIED BY "${password}"
                      ]]>
                   </SQL>
                </Command>
@@ -2084,7 +2107,7 @@ RUNTIMECAP ${_runtimecap}
       </ActionGroup>
 
       <ActionGroup type="User">
-         <Action id="exasol-user-changepassword" label="Change Password">
+         <Action id="exasol-user-changepassword" label="Change Password" icon="password">
             <Input label="User Name" style="text" editable="false">
                <Default>
                   ${objectname}
@@ -2095,8 +2118,7 @@ RUNTIMECAP ${_runtimecap}
             <Command>
                <SQL>
                   <![CDATA[
-ALTER USER "${objectname}"
-IDENTIFIED BY '${newpassword}' REPLACE '${oldpassword}'
+ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword}"
                      ]]>
                </SQL>
             </Command>
@@ -2107,130 +2129,6 @@ IDENTIFIED BY '${newpassword}' REPLACE '${oldpassword}'
                Password for ${objectname} changed!
             </Result>
          </Action>
-
-         <If test="#SUPERUSER">
-            <Action id="exasol-user-alter" label="Alter User" reload="true" icon="add">
-               <Input label="User Name" style="text" editable="false">
-                  <Default>
-                     ${objectname}
-                  </Default>
-               </Input>
-
-               <Input style="label" linebreak="false"/>
-               <Input label="Locked" name="locked" style="check">
-                  <Default>${deflocked}</Default>
-               </Input>
-               <Input label="Password Expired" name="expired" style="check" linebreak="true">
-                  <Values>PASSWORD EXPIRE</Values>
-               </Input>
-               <Input label="Profile" name="profile" style="list">
-                  <Values>
-                     <Command>
-                        <SQL>
-                           <![CDATA[select profile_name from profiles order by 1]]></SQL>
-                     </Command>
-                  </Values>
-                  <Default>${defprofile}</Default>
-               </Input>
-               <Input label="Resource Pool" name="pool" style="list">
-                  <Values>
-                     <Command>
-                        <SQL>
-                           <![CDATA[select name from resource_pools order by 1]]></SQL>
-                     </Command>
-                  </Values>
-                  <Default>${defpool}</Default>
-               </Input>
-
-               <!--Memory Cap-->
-               <SetVar name="_defmemcap"
-                       value='#defmemcap.equals("unlimited") ? "NONE" : "VALUE"'
-                       action="runwheninit"/>
-               <Input label="Memory Cap" name="memcap" style="radio" linebreak="false">
-                  <Values>NONE|VALUE</Values>
-                  <Labels>Unlimited|Value</Labels>
-                  <Default>${_defmemcap}</Default>
-               </Input>
-               <SetVar name="_defmemcapvalue"
-                       value='#defmemcap.equals("unlimited") ? "" : #defmemcap'
-                       action="runwheninit"/>
-               <Input label="Value" name="memcapvalue" style="text" linebreak="false"
-                       tip="Limits the amount of memory that the user's requests can use. This value is a number representing the amount of space, followed by a unit">
-                  <Default>${_defmemcapvalue}</Default>
-               </Input>
-               <Input label="" name="memcapunit" style="list" linebreak="true">
-                  <Values>K|M|G|T|%</Values>
-                  <Labels>KB|MB|GB|TB|%</Labels>
-                  <Default>K</Default>
-               </Input>
-
-               <!--Temp Space Cap-->
-               <SetVar name="_deftempspacecap"
-                       value='#deftempspacecap.equals("unlimited") ? "NONE" : "VALUE"'
-                       action="runwheninit"/>
-               <Input label="Temp Space Cap" name="tempspacecap" style="radio" linebreak="false">
-                  <Values>NONE|VALUE</Values>
-                  <Labels>Unlimited|Value</Labels>
-                  <Default>${_deftempspacecap}</Default>
-               </Input>
-               <SetVar name="_deftempspacecapvalue"
-                       value='#deftempspacecap.equals("unlimited") ? "" : #deftempspacecap'
-                       action="runwheninit"/>
-               <Input label="Value" name="tempspacecapvalue" style="text" linebreak="false"
-                       tip="Limits the amount of temporary file storage the user's requests can use. This parameter's value has the same format as the Memory Cap value">
-                  <Default>${_deftempspacecapvalue}</Default>
-               </Input>
-               <Input label="" name="tempspacecapunit" style="list" linebreak="true">
-                  <Values>K|M|G|T|%</Values>
-                  <Labels>KB|MB|GB|TB|%</Labels>
-                  <Default>K</Default>
-               </Input>
-
-               <!--Runtime Cap-->
-               <SetVar name="_defruntimecap"
-                       value='#defruntimecap.equals("unlimited") ? "NONE" : "VALUE"'
-                       action="runwheninit"/>
-               <Input label="Runtime Cap" name="runtimecap" style="radio" linebreak="false">
-                  <Values>NONE|VALUE</Values>
-                  <Labels>Unlimited|Value</Labels>
-                  <Default>${_defruntimecap}</Default>
-               </Input>
-               <SetVar name="_defruntimecapvalue"
-                       value='#defruntimecap.equals("unlimited") ? "" : #defruntimecap'
-                       action="runwheninit"/>
-               <Input label="Value" name="runtimecapvalue" style="text" linebreak="true"
-                       tip="Sets the maximum amount of time any of the user's queries can execute. Value is an interval, such as '1 minute', '100 seconds' or hours:minutes">
-                  <Default>${_defruntimecapvalue}</Default>
-               </Input>
-
-               <SetVar name="_memcap" value='#memcap.equals("NONE") ? "NONE" : "&#39;" + #memcapvalue + #memcapunit + "&#39;"'/>
-               <SetVar name="_tempspacecap" value='#tempspacecap.equals("NONE") ? "NONE" : "&#39;" + #tempspacecapvalue + #tempspacecapunit + "&#39;"'/>
-               <SetVar name="_runtimecap" value='#runtimecap.equals("NONE") ? "NONE" : "&#39;" + #runtimecapvalue + "&#39;"'/>
-
-               <SetVar name="_locked" value='#locked ? "UNLOCK" : "LOCK"'/>
-               <SetVar name="_expired" value='#expired.equals("") ? "" : #expired'/>
-
-               <Command>
-                  <SQL>
-                     <![CDATA[
-ALTER USER "${objectname}"
-ACCOUNT ${_locked} ${_expired}
-PROFILE ${profile}
-RESOURCE POOL ${pool}
-MEMORYCAP ${_memcap}
-TEMPSPACECAP ${_tempspacecap}
-RUNTIMECAP ${_runtimecap}
-                     ]]>
-                  </SQL>
-               </Command>
-               <Confirm>
-                  Really modify user ${objectname}?
-               </Confirm>
-               <Result>
-                  User ${objectname} modified!
-               </Result>
-            </Action>
-         </If>
 
          <If test="#SUPERUSER">
             <Action id="exasol-user-drop" label="Drop User" reload="true" icon="remove">
@@ -2715,15 +2613,15 @@ RUNTIMECAP ${_runtimecap}
          </DataNode>
       </GroupNode>
 
-	  <GroupNode type="VirtualSchemas" icon="Schema" label="Virtual Schemas">
-         <DataNode type="VirtualSchema" label="${exasol.getVirtualSchemas.Schema name}" icon="Schema" >
+	  <GroupNode type="VirtualSchemas" icon="aggregates" label="Virtual Schemas">
+         <DataNode type="VirtualSchema" label="${exasol.getVirtualSchemas.Schema name}" icon="aggregate" >
             <SetVar name="schema" value="${exasol.getVirtualSchemas.Schema name}"/>
             <Command idref="exasol.getVirtualSchemas">
                <Filter index="schema_name" label="Name"/>
             </Command>
 
-            <GroupNode type="Tables" label="Tables">
-               <DataNode type="VirtualTable" label="${exasol.getTables.Table Name}" icon="Table">
+            <GroupNode type="Tables" label="Tables" icon="foreigntables">
+               <DataNode type="VirtualTable" label="${exasol.getTables.Table Name}" icon="foreigntables">
                   <SetVar name="objectname" value="${exasol.getTables.Table Name}"/>
                   <SetVar name="owner" value="${exasol.getTables.Owner}"/>
                   <SetVar name="rowcount" value="true"/>
@@ -2818,7 +2716,7 @@ RUNTIMECAP ${_runtimecap}
             <DataNode type="Role" label="${exasol.getRoles.name}">
                <SetVar name="objectname" value="${exasol.getRoles.name}"/>
                <Command idref="exasol.getRoles"/>
-               <DataNode type="User" label="${exasol.getUsersFromRole.user_name}" isLeaf="true">
+               <DataNode type="User" label="${exasol.getUsersFromRole.Grantee}" isLeaf="true">
                   <Command idref="exasol.getUsersFromRole"/>
                </DataNode>
             </DataNode>
@@ -2894,12 +2792,35 @@ RUNTIMECAP ${_runtimecap}
 		
 	  </ObjectView>
 	  
-	  
 	  <ObjectView type="VirtualSchema">
 		<DataView id="exasol-virtualschema-info" icon="Info" label="Info" viewer="node-form"/>
+		<DataView id="exasol-virtualschema-properties" icon="toolpropertieswindow" label="Properties" viewer="grid">
+		
+		    <Input name="menuItem" value="Script: ALTER PROPERTY">
+               <Input name="command" value=" ALTER VIRTUAL SCHEMA ${object||Schema name} SET ${object||Property name}  = '${object||Property value}'"/>
+            </Input>
+            <Command idref="exasol.getVirtualSchemaProperties">
+				<Input name="schema" value="${schema}"/>
+			</Command>
+        </DataView>
+		
+		<DataView id="exasol-virtualschema-ddl" icon="Source" label="DDL" viewer="text">
+            <Input name="dataColumn" value="TEXT"/>
+            <Input name="formatSQL" value="false"/>
 
+            <Command idref="exasol.getVirtualSchemaDDL">
+               <Input name="schema" value="${schema}"/>
+
+            </Command>
+            <Message>
+               <![CDATA[
+				<html>
+				This view shows the DDL of the virtual schema.
+				</html>
+               ]]>
+            </Message>
+         </DataView>
 	  </ObjectView>
-	  
 	  
       <!-- ================================================================= -->
       <!-- Table Related Views -->
@@ -3035,7 +2956,7 @@ RUNTIMECAP ${_runtimecap}
       <!-- Virtual Schema Related -->
       <!-- ================================================================= -->
 	  
-      <ObjectView type="VirtualTable">
+      <ObjectView type="VirtualTable" icon = "foreigntable">
 		<DataView id="exasol-virtualtable-info" icon="Info" label="Info" viewer="node-form"/>
 		<DataView id="exasol-virtualtable-columns" icon="Columns" label="Columns" viewer="grid">
             <Command idref="getColumns">
@@ -3497,7 +3418,6 @@ RUNTIMECAP ${_runtimecap}
          </DataView>
       </ObjectView>
 	  
-	  
 	  <ObjectView type="Script">
          <DataView id="exasol-script-info" icon="Info" label="Script" viewer="node-form">
             <Command idref="exasol.getScript">
@@ -3546,11 +3466,16 @@ RUNTIMECAP ${_runtimecap}
 
       <ObjectView type="User">
          <DataView id="exasol-user-info" icon="Info" label="Info" viewer="node-form"/>
-         <DataView id="exasol-user-passwords" icon="Password" label="Passwords" viewer="grid">
-            <Command idref="exasol.getUserPasswords">
-               <Input name="user_name" value="${objectname}"/>
-            </Command>
+		 
+		 <DataView id="exasol-user-recursiveroles" icon="Groups" label="Granted Roles" viewer="grid">
+            <Command idref="exasol.getRecursiveRolesOfUser"/>
+			<Message>
+               <![CDATA[
+<html>Granted roles for this user shown recursively.</html>
+               ]]>
+            </Message>
          </DataView>
+		 
       </ObjectView>
 	  
 	  <ObjectView icon="propsconnection"  type="Connections" >
