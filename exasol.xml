@@ -558,6 +558,198 @@ COMMENT IS ''' || atab.TABLE_COMMENT || '''' else '' end || ';
          </SQL>
       </Command>
 
+	 <Command id="exasol.getSystemPrivilegesRecursive">
+        <SQL>
+            
+		<If test="#SUPERUSER">
+			<![CDATA[
+			select
+			"GRANTEE" 'Grantee', 
+			"PRIVILEGE" 'System privilege', 
+			"ADMIN_OPTION" 'Admin option'
+			from
+			EXA_DBA_SYS_PRIVS
+			where GRANTEE = '${objectname}' or GRANTEE in (
+					select
+					   GRANTED_ROLE 
+					from exa_dba_role_privs
+					connect by GRANTEE = prior GRANTED_ROLE
+					start with GRANTEE in ('${objectname}')
+			)
+			order by 1
+			]]>
+		</If>
+		<Else>
+			<![CDATA[
+			select
+			"GRANTEE" 'Grantee', 
+			"PRIVILEGE" 'System privilege', 
+			"ADMIN_OPTION" 'Admin option'
+			from
+			SYS.EXA_USER_SYS_PRIVS
+			where GRANTEE = '${objectname}' 
+
+			union 
+
+			select
+			"GRANTEE" 'Grantee', 
+			"PRIVILEGE" 'System privilege', 
+			"ADMIN_OPTION" 'Admin option'
+			from
+			SYS.EXA_ROLE_SYS_PRIVS
+			where  GRANTEE in (
+			
+					select 
+			
+					GRANTED_ROLE 'Granted Role'
+					from
+					EXA_USER_ROLE_PRIVS
+					WHERE GRANTEE = '${objectname}'
+
+			union
+			
+					select
+					
+					 RR.GRANTED_ROLE  
+					
+					from exa_role_role_privs RR
+					left join EXA_USER_ROLE_PRIVS UR
+					  on UR.GRANTED_ROLE = RR.GRANTEE
+
+					connect by RR.GRANTEE = prior RR.GRANTED_ROLE
+					start with UR.GRANTEE = '${objectname}'
+			)
+			order by 1
+            ]]>
+		</Else>	
+			
+         </SQL>
+      </Command>
+	  
+	<Command id="exasol.getObjectPrivilegesRecursive">
+        <SQL>
+            
+		<If test="#SUPERUSER">
+			<![CDATA[
+			select
+			op."OBJECT_SCHEMA" 'Object schema', op."OBJECT_NAME" 'Object name', op."OBJECT_TYPE" 'Object type', op."PRIVILEGE" 'Privilege', op."GRANTEE" 'Grantee', op."GRANTOR" 'Grantor', op."OWNER" 'Owner'
+			from
+			EXA_DBA_OBJ_PRIVS op
+			where GRANTEE = '${objectname}' or GRANTEE in (
+					select
+					   GRANTED_ROLE 
+					from exa_dba_role_privs
+					connect by GRANTEE = prior GRANTED_ROLE
+					start with GRANTEE in ('${objectname}')
+			)
+			order by 5
+			]]>
+		</If>
+		<Else>
+			<![CDATA[
+			select
+			op."OBJECT_SCHEMA" 'Object schema', op."OBJECT_NAME" 'Object name', op."OBJECT_TYPE" 'Object type', op."PRIVILEGE" 'Privilege', op."GRANTEE" 'Grantee', op."GRANTOR" 'Grantor', op."OWNER" 'Owner'
+			from
+			SYS.EXA_USER_OBJ_PRIVS op
+			where GRANTEE = '${objectname}'
+			union all
+
+			select
+			op."OBJECT_SCHEMA" 'Object schema', op."OBJECT_NAME" 'Object name', op."OBJECT_TYPE" 'Object type', op."PRIVILEGE" 'Privilege', op."GRANTEE" 'Grantee', op."GRANTOR" 'Grantor', op."OWNER" 'Owner'
+			from
+			SYS.EXA_ROLE_OBJ_PRIVS op
+			where  GRANTEE in (
+							
+							select 
+
+							GRANTED_ROLE 'Granted Role'
+							from
+							EXA_USER_ROLE_PRIVS
+							WHERE GRANTEE = '${objectname}'
+
+			union
+
+							select
+							
+							 RR.GRANTED_ROLE  
+							
+							from exa_role_role_privs RR
+							left join EXA_USER_ROLE_PRIVS UR
+							  on UR.GRANTED_ROLE = RR.GRANTEE
+
+							connect by RR.GRANTEE = prior RR.GRANTED_ROLE
+							start with UR.GRANTEE = '${objectname}'
+
+			)
+			order by 5
+            ]]>
+		</Else>	
+			
+         </SQL>
+      </Command>
+	  
+	  <Command id="exasol.getGrantedConnectionsRecursive">
+        <SQL>
+            
+		<If test="#SUPERUSER">
+			<![CDATA[
+			select
+			cp.GRANTEE 'Grantee', cp.GRANTED_CONNECTION 'Granted connection', cp.ADMIN_OPTION 'Admin option'
+			from
+			EXA_DBA_CONNECTION_PRIVS cp 
+			where GRANTEE = '${objectname}' or GRANTEE in (
+							select
+							   GRANTED_ROLE 
+							from exa_dba_role_privs
+							connect by GRANTEE = prior GRANTED_ROLE
+							start with GRANTEE in ('${objectname}')
+			)
+			order by 1
+			]]>
+		</If>
+		<Else>
+			<![CDATA[
+		select
+		cp.GRANTEE 'Grantee', cp.GRANTED_CONNECTION 'Granted connection', cp.ADMIN_OPTION 'Admin option'
+		from
+		SYS.EXA_USER_CONNECTION_PRIVS cp
+		where GRANTEE = '${objectname}'
+		union all
+
+		select
+		cp.GRANTEE 'Grantee', cp.GRANTED_CONNECTION 'Granted connection', cp.ADMIN_OPTION 'Admin option'
+		from
+		SYS.EXA_ROLE_CONNECTION_PRIVS cp
+		where  GRANTEE in (
+										
+										select 
+
+										GRANTED_ROLE 'Granted Role'
+										from
+										EXA_USER_ROLE_PRIVS
+										WHERE GRANTEE = '${objectname}'
+
+		union
+
+										select
+										
+										 RR.GRANTED_ROLE  
+										
+										from exa_role_role_privs RR
+										left join EXA_USER_ROLE_PRIVS UR
+										  on UR.GRANTED_ROLE = RR.GRANTEE
+
+										connect by RR.GRANTEE = prior RR.GRANTED_ROLE
+										start with UR.GRANTEE = '${objectname}'
+
+		)
+		order by 1
+            ]]>
+		</Else>	
+			
+         </SQL>
+      </Command>
+	  
 	 <Command id="exasol.getConnections">
         <SQL>
             
@@ -2307,7 +2499,7 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
 		</If>
 		
 		<If test="#SUPERUSER">
-			<Action id="exasol-user-revoke-role" label="Revoke Role from User" reload="true" icon="role">
+			<Action id="exasol-user-revoke-role" label="Revoke Role from User" reload="true" icon="remove">
             <Input label="User Name" style="text" editable="false">
                   <Default>${objectname}</Default>
                </Input>
@@ -2342,51 +2534,64 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
                </Input>
             <Input label="System privilege to grant" name="sysPrivToGrant" style="list">
 				<Values>
-					GRANT ANY OBJECT PRIVILEGE|
-					GRANT ANY PRIVILEGE|
-					GRANT ANY PRIORITY|
-					CREATE SESSION|
-					KILL ANY SESSION|
-					ALTER SYSTEM|
-					CREATE USER|
-					ALTER USER|
-					DROP USER|
-					CREATE ROLE|
-					DROP ANY ROLE|
-					GRANT ANY ROLE|
-					CREATE CONNECTION|
-					ALTER ANY CONNECTION|
-					DROP ANY CONNECTION|
-					GRANT ANY CONNECTION|
-					USE ANY CONNECTION|
-					ACCESS ANY CONNECTION|
-					CREATE SCHEMA|
-					ALTER ANY SCHEMA|
-					DROP ANY SCHEMA|
-					CREATE VIRTUAL SCHEMA|
-					ALTER ANY VIRTUAL SCHEMA|
-					ALTER ANY VIRTUAL SCHEMA REFRESH|
-					DROP ANY VIRTUAL SCHEMA|
-					CREATE TABLE|
-					CREATE ANY TABLE|
-					ALTER ANY TABLE|
-					DELETE ANY TABLE|
-					DROP ANY TABLE|
-					INSERT ANY TABLE|
-					SELECT ANY TABLE|
-					SELECT ANY DICTIONARY|
-					UPDATE ANY TABLE|
-					CREATE VIEW|
-					CREATE ANY VIEW|
-					DROP ANY VIEW|
-					CREATE FUNCTION|
-					CREATE ANY FUNCTION|
-					ALTER USER|
-					EXECUTE ANY FUNCTION|
-					CREATE SCRIPT|
-					CREATE ANY SCRIPT|
-					DROP ANY SCRIPT|
-					EXECUTE ANY SCRIPT
+					<Command><SQL>
+				  <![CDATA[
+					with sysprivs(privilege) as ( values
+					('GRANT ANY OBJECT PRIVILEGE'),
+					('GRANT ANY PRIVILEGE'),
+					('GRANT ANY PRIORITY'),
+					('CREATE SESSION'),
+					('KILL ANY SESSION'),
+					('ALTER SYSTEM'),
+					('CREATE USER'),
+					('ALTER USER'),
+					('DROP USER'),
+					('CREATE ROLE'),
+					('DROP ANY ROLE'),
+					('GRANT ANY ROLE'),
+					('CREATE CONNECTION'),
+					('ALTER ANY CONNECTION'),
+					('DROP ANY CONNECTION'),
+					('GRANT ANY CONNECTION'),
+					('USE ANY CONNECTION'),
+					('ACCESS ANY CONNECTION'),
+					('CREATE SCHEMA'),
+					('ALTER ANY SCHEMA'),
+					('DROP ANY SCHEMA'),
+					('CREATE VIRTUAL SCHEMA'),
+					('ALTER ANY VIRTUAL SCHEMA'),
+					('ALTER ANY VIRTUAL SCHEMA REFRESH'),
+					('DROP ANY VIRTUAL SCHEMA'),
+					('CREATE TABLE'),
+					('CREATE ANY TABLE'),
+					('ALTER ANY TABLE'),
+					('DELETE ANY TABLE'),
+					('DROP ANY TABLE'),
+					('INSERT ANY TABLE'),
+					('SELECT ANY TABLE'),
+					('SELECT ANY DICTIONARY'),
+					('UPDATE ANY TABLE'),
+					('CREATE VIEW'),
+					('CREATE ANY VIEW'),
+					('DROP ANY VIEW'),
+					('CREATE FUNCTION'),
+					('CREATE ANY FUNCTION'),
+					('EXECUTE ANY FUNCTION'),
+					('CREATE SCRIPT'),
+					('CREATE ANY SCRIPT'),
+					('DROP ANY SCRIPT'),
+					('EXECUTE ANY SCRIPT')
+					)
+					select * from sysprivs
+					minus
+					select
+					PRIVILEGE
+					from
+					EXA_DBA_SYS_PRIVS
+					where GRANTEE = '${objectname}'
+					order by 1
+				]]></SQL>
+				</Command>
 				</Values>
 			  </Input>
 			<Input label="With admin option" name="withAdminOptions" style="check"
@@ -2394,7 +2599,7 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
 				<Values>WITH ADMIN OPTION</Values>
 			</Input>
             <Command>
-               <SQL><![CDATA[GRANT "${sysPrivToGrant}" TO "${objectname}" ${withAdminOptions}]]></SQL>
+               <SQL><![CDATA[GRANT ${sysPrivToGrant} TO "${objectname}" ${withAdminOptions}]]></SQL>
             </Command>
             <Confirm>
                Grant system privilege ${sysPrivToGrant} to ${objectname}?
@@ -2406,7 +2611,7 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
 		</If>
 		 
 		<If test="#SUPERUSER">
-			<Action id="exasol-user-revoke-syspriv" label="Revoke System Privilege From user" reload="true" icon="privileges">
+			<Action id="exasol-user-revoke-syspriv" label="Revoke System Privilege From user" reload="true" icon="remove">
             <Input label="User Name" style="text" editable="false">
                   <Default>${objectname}</Default>
                </Input>
@@ -2419,12 +2624,13 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
 					from
 					EXA_DBA_SYS_PRIVS
 					where GRANTEE = '${objectname}'
+					order by 1
 				]]></SQL>
 				</Command>
 				</Values>
 			  </Input>
             <Command>
-               <SQL><![CDATA[REVOKE "${sysPrivToRevoke}" TO "${objectname}"]]></SQL>
+               <SQL><![CDATA[REVOKE ${sysPrivToRevoke} FROM "${objectname}"]]></SQL>
             </Command>
             <Confirm>
                Revoke system privilege ${sysPrivToRevoke} from ${objectname}?
@@ -2434,6 +2640,47 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
             </Result>
          </Action> 
 		</If>
+		
+		<If test="#SUPERUSER">
+			<Action id="exasol-user-grant-priority" label="Grant Priority to User" reload="true" icon="status">
+				<Input label="User Name" style="text" editable="false">
+					  <Default>${objectname}</Default>
+				</Input>
+				<Input label="Priority" name="prioToGrant" style="list">
+					<Values>
+					  LOW|MEDIUM|HIGH
+					</Values>
+				</Input>
+				<Command>
+				   <SQL><![CDATA[GRANT PRIORITY ${prioToGrant} TO "${objectname}" ]]></SQL>
+				</Command>
+				<Confirm>
+					Grant priority ${prioToGrant} to ${objectname}?
+				</Confirm>
+				<Result>
+					Granted priority ${prioToGrant} to ${objectname}?
+				</Result>
+			</Action> 
+		</If>
+		
+		<If test="#SUPERUSER">
+			<Action id="exasol-user-comment" label="Comment User" reload="true" resetschemas="true" icon="comment">
+				<Input label="User" style="text" editable="false">
+				   <Default>${objectname}</Default>
+				</Input>
+				<Input label="Comment" name="comment" style="text"/>
+				<Command>
+				   <SQL><![CDATA[COMMENT ON USER "${objectname}" IS '${comment}']]></SQL>
+				</Command>
+				<Confirm>
+				   Confirm comment on user ${objectname}?
+				</Confirm>
+				<Result>
+				   Comment on ${objectname} successful.
+				</Result>
+			 </Action>
+		 </If>
+				
       </ActionGroup>
 
       <ActionGroup type="Roles">
@@ -3759,6 +4006,33 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
 			<Message>
                <![CDATA[
 <html>Granted roles for this user shown recursively.</html>
+               ]]>
+            </Message>
+         </DataView>
+		 
+		 <DataView id="exasol-user-recursivesystemprivs" icon="privileges" label="Granted System Privileges" viewer="grid">
+            <Command idref="exasol.getSystemPrivilegesRecursive"/>
+			<Message>
+               <![CDATA[
+<html>Granted system privileges for this user shown recursively.</html>
+               ]]>
+            </Message>
+         </DataView>
+		 
+		 <DataView id="exasol-user-recursiveobjectprivs" icon="table" label="Granted Object Privileges" viewer="grid">
+            <Command idref="exasol.getObjectPrivilegesRecursive"/>
+			<Message>
+               <![CDATA[
+<html>Granted object privileges for this user shown recursively.</html>
+               ]]>
+            </Message>
+         </DataView>
+		 
+		<DataView id="exasol-user-recursiveconnections" icon="connection" label="Granted Connections" viewer="grid">
+            <Command idref="exasol.getGrantedConnectionsRecursive"/>
+			<Message>
+               <![CDATA[
+<html>Granted connections for this user shown recursively.</html>
                ]]>
             </Message>
          </DataView>
