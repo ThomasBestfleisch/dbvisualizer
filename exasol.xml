@@ -558,6 +558,39 @@ COMMENT IS ''' || atab.TABLE_COMMENT || '''' else '' end || ';
          </SQL>
       </Command>
 
+	  <Command id="exasol.getRecursiveRolesOfRole">
+        <SQL>
+            
+		<If test="#SUPERUSER">
+			<![CDATA[
+			select
+				CONNECT_BY_ROOT(GRANTEE) as 'Grantee',
+				GRANTED_ROLE 'Granted Role', 
+				ADMIN_OPTION 'Admin Option',
+				CONNECT_BY_ROOT(GRANTEE) || SYS_CONNECT_BY_PATH(GRANTED_ROLE, ' <- ') as 'Grant Path'
+			from exa_dba_role_privs
+			connect by GRANTEE = prior GRANTED_ROLE
+			start with GRANTEE in ('${objectname}')
+			]]>
+		</If>
+		<Else>
+			<![CDATA[
+			select
+			  CONNECT_BY_ROOT(RR.GRANTEE) as 'Grantee',
+			  RR.GRANTED_ROLE  'Granted Role',
+			  RR.ADMIN_OPTION 'Admin Option',
+			  CONNECT_BY_ROOT(RR.GRANTEE) || SYS_CONNECT_BY_PATH(RR.GRANTED_ROLE, ' <- ') as 'Grant Path'
+
+			from exa_role_role_privs RR
+
+			connect by RR.GRANTEE = prior RR.GRANTED_ROLE
+			start with RR.GRANTEE = '${objectname}' 
+            ]]>
+		</Else>	
+			
+         </SQL>
+      </Command>
+	  
 	 <Command id="exasol.getSystemPrivilegesRecursive">
         <SQL>
             
@@ -626,6 +659,52 @@ COMMENT IS ''' || atab.TABLE_COMMENT || '''' else '' end || ';
          </SQL>
       </Command>
 	  
+	  <Command id="exasol.getSystemPrivilegesRoleRecursive">
+        <SQL>
+            
+		<If test="#SUPERUSER">
+			<![CDATA[
+			select
+			"GRANTEE" 'Grantee', 
+			"PRIVILEGE" 'System privilege', 
+			"ADMIN_OPTION" 'Admin option'
+			from
+			EXA_DBA_SYS_PRIVS
+			where GRANTEE = '${objectname}' or GRANTEE in (
+					select
+					   GRANTED_ROLE 
+					from exa_dba_role_privs
+					connect by GRANTEE = prior GRANTED_ROLE
+					start with GRANTEE in ('${objectname}')
+			)
+			order by 1
+			]]>
+		</If>
+		<Else>
+			<![CDATA[
+			select
+			"GRANTEE" 'Grantee', 
+			"PRIVILEGE" 'System privilege', 
+			"ADMIN_OPTION" 'Admin option'
+			from
+			SYS.EXA_ROLE_SYS_PRIVS
+			where GRANTEE = '${objectname}' or GRANTEE in (
+			
+					select
+					
+					 RR.GRANTED_ROLE  
+					
+					from exa_role_role_privs RR
+					connect by RR.GRANTEE = prior RR.GRANTED_ROLE
+					start with RR.GRANTEE = '${objectname}'
+			)
+			order by 1
+            ]]>
+		</Else>	
+			
+         </SQL>
+      </Command>  
+	  
 	<Command id="exasol.getObjectPrivilegesRecursive">
         <SQL>
             
@@ -680,6 +759,49 @@ COMMENT IS ''' || atab.TABLE_COMMENT || '''' else '' end || ';
 							connect by RR.GRANTEE = prior RR.GRANTED_ROLE
 							start with UR.GRANTEE = '${objectname}'
 
+			)
+			order by 5
+            ]]>
+		</Else>	
+			
+         </SQL>
+      </Command>
+	  
+	  <Command id="exasol.getObjectPrivilegesRoleRecursive">
+        <SQL>
+            
+		<If test="#SUPERUSER">
+			<![CDATA[
+			select
+			op."OBJECT_SCHEMA" 'Object schema', op."OBJECT_NAME" 'Object name', op."OBJECT_TYPE" 'Object type', op."PRIVILEGE" 'Privilege', op."GRANTEE" 'Grantee', op."GRANTOR" 'Grantor', op."OWNER" 'Owner'
+			from
+			EXA_DBA_OBJ_PRIVS op
+			where GRANTEE = '${objectname}' or GRANTEE in (
+					select
+					   GRANTED_ROLE 
+					from exa_dba_role_privs
+					connect by GRANTEE = prior GRANTED_ROLE
+					start with GRANTEE in ('${objectname}')
+			)
+			order by 5
+			]]>
+		</If>
+		<Else>
+			<![CDATA[
+
+			select
+			op."OBJECT_SCHEMA" 'Object schema', op."OBJECT_NAME" 'Object name', op."OBJECT_TYPE" 'Object type', op."PRIVILEGE" 'Privilege', op."GRANTEE" 'Grantee', op."GRANTOR" 'Grantor', op."OWNER" 'Owner'
+			from
+			SYS.EXA_ROLE_OBJ_PRIVS op
+			where GRANTEE = '${objectname}' or GRANTEE in (
+				select
+				
+				 RR.GRANTED_ROLE  
+				
+				from exa_role_role_privs RR
+
+				connect by RR.GRANTEE = prior RR.GRANTED_ROLE
+				start with RR.GRANTEE = '${objectname}'
 			)
 			order by 5
             ]]>
@@ -750,6 +872,67 @@ COMMENT IS ''' || atab.TABLE_COMMENT || '''' else '' end || ';
          </SQL>
       </Command>
 	  
+	  <Command id="exasol.getGrantedConnectionsRoleRecursive">
+        <SQL>
+            
+		<If test="#SUPERUSER">
+			<![CDATA[
+			select
+			cp.GRANTEE 'Grantee', cp.GRANTED_CONNECTION 'Granted connection', cp.ADMIN_OPTION 'Admin option'
+			from
+			EXA_DBA_CONNECTION_PRIVS cp 
+			where GRANTEE = '${objectname}' or GRANTEE in (
+							select
+							   GRANTED_ROLE 
+							from exa_dba_role_privs
+							connect by GRANTEE = prior GRANTED_ROLE
+							start with GRANTEE in ('${objectname}')
+			)
+			order by 1
+			]]>
+		</If>
+		<Else>
+			<![CDATA[
+
+			select
+			cp.GRANTEE 'Grantee', cp.GRANTED_CONNECTION 'Granted connection', cp.ADMIN_OPTION 'Admin option'
+			from
+			SYS.EXA_ROLE_CONNECTION_PRIVS cp
+			where GRANTEE = '${objectname}' or GRANTEE in (			
+				select
+				
+				 RR.GRANTED_ROLE  
+				
+				from exa_role_role_privs RR
+				left join EXA_USER_ROLE_PRIVS UR
+				  on UR.GRANTED_ROLE = RR.GRANTEE
+
+				connect by RR.GRANTEE = prior RR.GRANTED_ROLE
+				start with UR.GRANTEE = '${objectname}'
+			)
+			order by 1
+            ]]>
+		</Else>	
+			
+         </SQL>
+      </Command>
+	  
+	  <Command id="exasol.getOwnedSchemas">
+        <SQL>
+            
+			<![CDATA[
+			select 
+			es."SCHEMA_NAME" 'Schema name', es."SCHEMA_OWNER" 'Owner',  es."SCHEMA_IS_VIRTUAL" 'Is virtual', es."SCHEMA_COMMENT" 'Comment'
+
+			from
+			"SYS"."EXA_SCHEMAS" es
+			where SCHEMA_OWNER = '${objectname}'
+			order by 1
+            ]]>
+		
+         </SQL>
+      </Command>
+		
 	 <Command id="exasol.getConnections">
         <SQL>
             
@@ -775,11 +958,43 @@ COMMENT IS ''' || atab.TABLE_COMMENT || '''' else '' end || ';
 				CONNECTION_COMMENT 'Comment'
 			FROM
 				SYS.EXA_ALL_CONNECTIONS
+			ORDER BY CONNECTION_NAME
             ]]>
 		</Else>	
 			
          </SQL>
       </Command>
+	  
+	  <Command id="exasol.getConnectionGrantees">
+        <SQL>
+            
+		<If test="#SUPERUSER">
+			<![CDATA[
+
+			select 
+			GRANTEE 'Grantee'
+			from
+			EXA_DBA_CONNECTION_PRIVS
+			where
+			GRANTED_CONNECTION = '${objectname}'
+			]]>
+		</If>
+		<Else>
+			<![CDATA[
+			select 
+			GRANTEE 'Grantee'
+			from
+			EXA_USER_CONNECTION_PRIVS
+			where
+			GRANTED_CONNECTION = '${objectname}'
+            ]]>
+		</Else>	
+			
+         </SQL>
+      </Command>
+	  
+	  
+	  
 	  
       <Command id="exasol.getRoles">
          <SQL>
@@ -2402,13 +2617,12 @@ AS LANGUAGE '${language}' NAME '${factoryFunction}' LIBRARY ${libraryName} ${fen
          <If test="#SUPERUSER">
             <Action id="exasol-users-add" label="Create User" reload="true" icon="add">
                <Input label="User Name" name="username" style="text"/>
-
                <Input label="Password" name="password" style="password" />
-               			   
+			   
                <Command>
-                  <SQL>
-                     <![CDATA[
-CREATE USER ${QB}"${username}"${QE} IDENTIFIED BY "${password}"
+                 <SQL>
+					<![CDATA[
+					CREATE USER ${QB}"${username}"${QE} IDENTIFIED BY "${password}"
                      ]]>
                   </SQL>
                </Command>
@@ -2417,9 +2631,47 @@ CREATE USER ${QB}"${username}"${QE} IDENTIFIED BY "${password}"
                </Result>
             </Action>
          </If>
+		 
+		  <If test="#SUPERUSER">
+            <Action id="exasol-users-addldap" label="Create User LDAP" reload="true" icon="add">
+               <Input label="User Name" name="username" style="text"/>
+               <Input label="LDAP Distiguished name" name ="distname" style="text">
+				      <Default>cn=user_2,dc=authorization,dc=exasol,dc=com</Default>
+				</Input>
+               <Command>
+                 <SQL>
+                     <![CDATA[
+					CREATE USER ${QB}"${username}"${QE} AT LDAP AS '${distname}'
+                     ]]>
+                  </SQL>
+               </Command>
+               <Result>
+                  User ${username} created!
+               </Result>
+            </Action>
+         </If>
+		 
       </ActionGroup>
 
       <ActionGroup type="User">
+		<If test="#SUPERUSER">
+			<Action id="exasol-user-rename" label="Rename User" reload="true" icon="rename">
+			   <Input label="User" style="text" editable="false">
+				  <Default>${objectname}</Default>
+			   </Input>
+			   <Input label="New name" name="newName" style="text"/>
+			   <Command>
+				  <SQL><![CDATA[rename user "${objectname}"  to ${QB}"${newName}"${QE}]]></SQL>
+			   </Command>
+			   <Confirm>
+				  Confirm rename of user ${objectname} to ${newName}?
+			   </Confirm>
+			   <Result>
+				  User ${objectname} renamed to ${newName}!
+			   </Result>
+			</Action>
+		</If>
+		
          <Action id="exasol-user-changepassword" label="Change Password" icon="password">
             <Input label="User Name" style="text" editable="false">
                <Default>
@@ -2431,7 +2683,7 @@ CREATE USER ${QB}"${username}"${QE} IDENTIFIED BY "${password}"
             <Command>
                <SQL>
                   <![CDATA[
-ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword}"
+					ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword}"
                      ]]>
                </SQL>
             </Command>
@@ -2441,9 +2693,36 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
             <Result>
                Password for ${objectname} changed!
             </Result>
+        </Action>
+		
+		<If>
+		 <Action id="exasol-user-changedistinguishedname" label="Change LDAP Distinguished Name " icon="user">
+            <Input label="User Name" style="text" editable="false">
+               <Default>
+                  ${objectname}
+               </Default>
+            </Input>
+            <Input label="Distinguished name" name="distname" style="text">
+				<Default>
+                  ${distinguishedName}
+               </Default>
+			</Input>
+            <Command>
+               <SQL>
+                  <![CDATA[
+					ALTER USER "${objectname}" IDENTIFIED AT LDAP AS '${distname}'
+                     ]]>
+               </SQL>
+            </Command>
+            <Confirm>
+               Really change distinguished name for user ${objectname}?
+            </Confirm>
+            <Result>
+               Distinguished name ${objectname} changed!
+            </Result>
          </Action>
-
-         <If test="#SUPERUSER">
+		 
+         
             <Action id="exasol-user-drop" label="Drop User" reload="true" icon="remove">
                <Input label="User Name" style="text" editable="false">
                   <Default>${objectname}</Default>
@@ -2611,34 +2890,34 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
 		</If>
 		 
 		<If test="#SUPERUSER">
-			<Action id="exasol-user-revoke-syspriv" label="Revoke System Privilege From user" reload="true" icon="remove">
-            <Input label="User Name" style="text" editable="false">
-                  <Default>${objectname}</Default>
-               </Input>
-            <Input label="System privilege to revoke" name="sysPrivToRevoke" style="list">
-				<Values>
-				  <Command><SQL>
-				  <![CDATA[
-					select
-					PRIVILEGE
-					from
-					EXA_DBA_SYS_PRIVS
-					where GRANTEE = '${objectname}'
-					order by 1
-				]]></SQL>
+			<Action id="exasol-user-revoke-syspriv" label="Revoke System Privilege From User" reload="true" icon="remove">
+				<Input label="User Name" style="text" editable="false">
+					  <Default>${objectname}</Default>
+				   </Input>
+				<Input label="System privilege to revoke" name="sysPrivToRevoke" style="list">
+					<Values>
+					  <Command><SQL>
+					  <![CDATA[
+						select
+						PRIVILEGE
+						from
+						EXA_DBA_SYS_PRIVS
+						where GRANTEE = '${objectname}'
+						order by 1
+					]]></SQL>
+					</Command>
+					</Values>
+				  </Input>
+				<Command>
+				   <SQL><![CDATA[REVOKE ${sysPrivToRevoke} FROM "${objectname}"]]></SQL>
 				</Command>
-				</Values>
-			  </Input>
-            <Command>
-               <SQL><![CDATA[REVOKE ${sysPrivToRevoke} FROM "${objectname}"]]></SQL>
-            </Command>
-            <Confirm>
-               Revoke system privilege ${sysPrivToRevoke} from ${objectname}?
-            </Confirm>
-            <Result>
-				Revoked system privilege ${sysPrivToRevoke} from ${objectname}?
-            </Result>
-         </Action> 
+				<Confirm>
+				   Revoke system privilege ${sysPrivToRevoke} from ${objectname}?
+				</Confirm>
+				<Result>
+					Revoked system privilege ${sysPrivToRevoke} from ${objectname}?
+				</Result>
+			</Action>
 		</If>
 		
 		<If test="#SUPERUSER">
@@ -2664,7 +2943,7 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
 		</If>
 		
 		<If test="#SUPERUSER">
-			<Action id="exasol-user-comment" label="Comment User" reload="true" resetschemas="true" icon="comment">
+			<Action id="exasol-user-comment" label="Comment User" reload="true" icon="comment">
 				<Input label="User" style="text" editable="false">
 				   <Default>${objectname}</Default>
 				</Input>
@@ -2688,7 +2967,7 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
             <Action id="exasol-roles-add" label="Create Role" reload="true" icon="add">
                <Input label="Role Name" name="rolename" style="text"/>
                <Command>
-                  <SQL><![CDATA[CREATE ROLE ${QB}${rolename}${QE}]]></SQL>
+                  <SQL><![CDATA[CREATE ROLE ${QB}"${rolename}"${QE}]]></SQL>
                </Command>
                <Result>
                   Role ${rolename} created!
@@ -2703,9 +2982,9 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
                <Input label="Role" style="text" editable="false">
                   <Default>${objectname}</Default>
                </Input>
-               <Input label="New Role Name" name="newRole" style="text"/>
+               <Input label="New name" name="newRole" style="text"/>
                <Command>
-                  <SQL><![CDATA[alter role "${objectname}" rename to ${QB}${newRole}${QE}]]></SQL>
+                  <SQL><![CDATA[rename role "${objectname}" to ${QB}"${newRole}"${QE}]]></SQL>
                </Command>
                <Confirm>
                   Confirm rename of role ${objectname} to ${newRole}?
@@ -2733,9 +3012,390 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
                   Role ${objectname} dropped!
                </Result>
             </Action>
+			
+			<Action id="exasol-role-grant-role" label="Grant Role to Role" reload="true" icon="role">
+				<Input label="Role Name" style="text" editable="false">
+					  <Default>${objectname}</Default>
+				   </Input>
+				<Input label="Role to grant" name="roleToGrant" style="list">
+					<Values>
+					  <Command><SQL><![CDATA[
+						select ROLE_NAME from EXA_DBA_ROLES
+						where ROLE_NAME not in (
+						select 
+						GRANTED_ROLE
+						from
+						EXA_DBA_ROLE_PRIVS
+						where
+						GRANTEE = '${objectname}'
+						) and ROLE_NAME not like 'PUBLIC';
+					  ]]></SQL></Command>
+					</Values>
+				  </Input>
+				  <Input label="With admin option" name="withAdminOptions" style="check"
+					   tip="Will grant the role with admin option, so the user can grant this role to others.">
+				   <Values>WITH ADMIN OPTION</Values>
+				</Input>
+				<Command>
+				   <SQL><![CDATA[GRANT "${roleToGrant}" TO "${objectname}" ${withAdminOptions}]]></SQL>
+				</Command>
+				<Confirm>
+				   Grant role ${roleToGrant} to ${objectname}?
+				</Confirm>
+				<Result>
+					Granted role ${roleToGrant} to ${objectname}?
+				</Result>
+			</Action> 
+			
+			<Action id="exasol-role-revoke-role" label="Revoke Role from Role" reload="true" icon="remove">
+				<Input label="Role Name" style="text" editable="false">
+					  <Default>${objectname}</Default>
+				   </Input>
+				<Input label="Role to revoke" name="roleToRevoke" style="list">
+					<Values>
+					  <Command><SQL><![CDATA[
+							select 
+							GRANTED_ROLE
+							from
+							EXA_DBA_ROLE_PRIVS
+							where
+							GRANTEE = '${objectname}'
+					]]></SQL></Command>
+					</Values>
+				  </Input>
+				<Command>
+				   <SQL><![CDATA[REVOKE "${roleToRevoke}" FROM "${objectname}"]]></SQL>
+				</Command>
+				<Confirm>
+					Revoke role ${roleToRevoke} from ${objectname}?
+				</Confirm>
+				<Result>
+					Revoked role ${roleToRevoke} from ${objectname}.
+				</Result>
+		   </Action> 
+
+		   <Action id="exasol-role-grant-syspriv" label="Grant System Privilege to Role" reload="true" icon="privileges">
+            <Input label="Role Name" style="text" editable="false">
+                  <Default>${objectname}</Default>
+               </Input>
+            <Input label="System privilege to grant" name="sysPrivToGrant" style="list">
+				<Values>
+					<Command><SQL>
+				  <![CDATA[
+					with sysprivs(privilege) as ( values
+					('GRANT ANY OBJECT PRIVILEGE'),
+					('GRANT ANY PRIVILEGE'),
+					('GRANT ANY PRIORITY'),
+					('CREATE SESSION'),
+					('KILL ANY SESSION'),
+					('ALTER SYSTEM'),
+					('CREATE USER'),
+					('ALTER USER'),
+					('DROP USER'),
+					('CREATE ROLE'),
+					('DROP ANY ROLE'),
+					('GRANT ANY ROLE'),
+					('CREATE CONNECTION'),
+					('ALTER ANY CONNECTION'),
+					('DROP ANY CONNECTION'),
+					('GRANT ANY CONNECTION'),
+					('USE ANY CONNECTION'),
+					('ACCESS ANY CONNECTION'),
+					('CREATE SCHEMA'),
+					('ALTER ANY SCHEMA'),
+					('DROP ANY SCHEMA'),
+					('CREATE VIRTUAL SCHEMA'),
+					('ALTER ANY VIRTUAL SCHEMA'),
+					('ALTER ANY VIRTUAL SCHEMA REFRESH'),
+					('DROP ANY VIRTUAL SCHEMA'),
+					('CREATE TABLE'),
+					('CREATE ANY TABLE'),
+					('ALTER ANY TABLE'),
+					('DELETE ANY TABLE'),
+					('DROP ANY TABLE'),
+					('INSERT ANY TABLE'),
+					('SELECT ANY TABLE'),
+					('SELECT ANY DICTIONARY'),
+					('UPDATE ANY TABLE'),
+					('CREATE VIEW'),
+					('CREATE ANY VIEW'),
+					('DROP ANY VIEW'),
+					('CREATE FUNCTION'),
+					('CREATE ANY FUNCTION'),
+					('EXECUTE ANY FUNCTION'),
+					('CREATE SCRIPT'),
+					('CREATE ANY SCRIPT'),
+					('DROP ANY SCRIPT'),
+					('EXECUTE ANY SCRIPT')
+					)
+					select * from sysprivs
+					minus
+					select
+					PRIVILEGE
+					from
+					EXA_DBA_SYS_PRIVS
+					where GRANTEE = '${objectname}'
+					order by 1
+				]]></SQL>
+				</Command>
+				</Values>
+			  </Input>
+			<Input label="With admin option" name="withAdminOptions" style="check"
+                   tip="Will grant the system privilege with admin option, so the user can grant this role to others.">
+				<Values>WITH ADMIN OPTION</Values>
+			</Input>
+            <Command>
+               <SQL><![CDATA[GRANT ${sysPrivToGrant} TO "${objectname}" ${withAdminOptions}]]></SQL>
+            </Command>
+            <Confirm>
+               Grant system privilege ${sysPrivToGrant} to ${objectname}?
+            </Confirm>
+            <Result>
+				Granted system privilege ${sysPrivToGrant} to ${objectname}?
+            </Result>
+         </Action> 
+		 
+		 <Action id="exasol-role-revoke-syspriv" label="Revoke System Privilege From Role" reload="true" icon="remove">
+            <Input label="Role Name" style="text" editable="false">
+                  <Default>${objectname}</Default>
+               </Input>
+            <Input label="System privilege to revoke" name="sysPrivToRevoke" style="list">
+				<Values>
+				  <Command><SQL>
+				  <![CDATA[
+					select
+					PRIVILEGE
+					from
+					EXA_DBA_SYS_PRIVS
+					where GRANTEE = '${objectname}'
+					order by 1
+				]]></SQL>
+				</Command>
+				</Values>
+			  </Input>
+            <Command>
+               <SQL><![CDATA[REVOKE ${sysPrivToRevoke} FROM "${objectname}"]]></SQL>
+            </Command>
+            <Confirm>
+               Revoke system privilege ${sysPrivToRevoke} from ${objectname}?
+            </Confirm>
+            <Result>
+				Revoked system privilege ${sysPrivToRevoke} from ${objectname}?
+            </Result>
+         </Action>
+		 
+		<Action id="exasol-role-grant-priority" label="Grant Priority to Role" reload="true" icon="status">
+			<Input label="Role Name" style="text" editable="false">
+				  <Default>${objectname}</Default>
+			</Input>
+			<Input label="Priority" name="prioToGrant" style="list">
+				<Values>
+				  LOW|MEDIUM|HIGH
+				</Values>
+			</Input>
+			<Command>
+			   <SQL><![CDATA[GRANT PRIORITY ${prioToGrant} TO "${objectname}" ]]></SQL>
+			</Command>
+			<Confirm>
+				Grant priority ${prioToGrant} to ${objectname}?
+			</Confirm>
+			<Result>
+				Granted priority ${prioToGrant} to ${objectname}?
+			</Result>
+		</Action> 
+		
+		<Action id="exasol-role-comment" label="Comment Role" reload="true" resetschemas="true" icon="comment">
+			<Input label="Role" style="text" editable="false">
+			   <Default>${objectname}</Default>
+			</Input>
+			<Input label="Comment" name="comment" style="text"/>
+			<Command>
+			   <SQL><![CDATA[COMMENT ON ROLE "${objectname}" IS '${comment}']]></SQL>
+			</Command>
+			<Confirm>
+			   Confirm comment on role ${objectname}?
+			</Confirm>
+			<Result>
+			   Comment on ${objectname} successful.
+			</Result>
+		</Action>
+		
          </If>
+		 
       </ActionGroup>
 
+	  <ActionGroup type="Connections">
+         <If test="#SUPERUSER">
+            <Action id="exasol-connections-add" label="Create Connection" reload="true" icon="add">
+               <Input label="Connection Name" name="connectionname" style="text"/>
+			   <Input label="Connection String" name="connectionstring" style="text-editor">
+					<Arg name="height" value="30"/>
+					<Default>jdbc:</Default>
+			   </Input>
+	           <Input label="User Name" name="username" style="text"/>
+
+               <Input label="Password" name="password" style="password" />
+			   
+               <Command>
+                 <SQL>
+					<![CDATA[
+					CREATE CONNECTION ${QB}"${connectionname}"${QE} 
+					TO '${connectionstring}' 
+					USER '${username}' 
+					IDENTIFIED BY '${password}'
+                    ]]>
+                  </SQL>
+               </Command>
+               <Result>
+                  User ${username} created!
+               </Result>
+            </Action>
+         </If>
+      </ActionGroup>
+	  
+	  <ActionGroup type="Connection">
+		<If test="#SUPERUSER">
+			<Action id="exasol-connection-rename" label="Rename Connection" reload="true" icon="rename">
+			   <Input label="Connection" style="text" editable="false">
+				  <Default>${objectname}</Default>
+			   </Input>
+			   <Input label="New name" name="newName" style="text"/>
+			   <Command>
+				  <SQL><![CDATA[rename connection "${objectname}"  to ${QB}"${newName}"${QE}]]></SQL>
+			   </Command>
+			   <Confirm>
+				  Confirm rename of ${objectname} to ${newName}?
+			   </Confirm>
+			   <Result>
+				  Connection ${objectname} renamed to ${newName}!
+			   </Result>
+			</Action>
+			
+			<Action id="exasol-connection-alter" label="Alter Connection" reload="true" icon="editconnections">
+			   <Input label="Connection" style="text" editable="false">
+				  <Default>${objectname}</Default>
+			   </Input>			   
+			   
+			   <Input label="Connection String" name="connectionstring" style="text-editor">
+					<Arg name="height" value="30"/>
+					<Default>${constring}</Default>
+			   </Input>
+	           <Input label="User Name" name="username" style="text">
+					<Default>${uname}</Default>
+			   </Input>
+               <Input label="Password" name="password" style="password" />
+			   
+               <Command>
+                 <SQL>
+					<![CDATA[
+					ALTER CONNECTION ${QB}"${objectname}"${QE} 
+					TO '${connectionstring}' 
+					USER '${username}' 
+					IDENTIFIED BY '${password}'
+                    ]]>
+                  </SQL>
+               </Command>
+               <Result>
+                  User ${username} created!
+               </Result>
+            </Action>
+			
+			<Action id="exasol-connection-grant" label="Grant Connection" reload="true" icon="role">
+				<Input label="Connection Name" style="text" editable="false">
+					  <Default>${objectname}</Default>
+				   </Input>
+				<Input label="Grant to" name="roleToGrant" style="list">
+					<Values>
+					  <Command><SQL><![CDATA[
+						select 
+						ROLE_NAME 'Name'
+						from EXA_DBA_ROLES
+						where ROLE_NAME not in (
+							select 
+							GRANTEE
+							from
+							EXA_DBA_CONNECTION_PRIVS
+							where
+							GRANTED_CONNECTION = '${objectname}'
+						) 
+						
+						union all 
+						
+						select 
+						USER_NAME 'Name'
+						from EXA_DBA_USERS
+						where USER_NAME not in (
+							select 
+							GRANTEE
+							from
+							EXA_DBA_CONNECTION_PRIVS
+							where
+							GRANTED_CONNECTION = '${objectname}'
+						) 
+					  ]]></SQL></Command>
+					</Values>
+				  </Input>
+				<Input label="With admin option" name="withAdminOptions" style="check"
+					   tip="Will grant the connection with admin option, so the user can grant this connection to others.">
+				   <Values>WITH ADMIN OPTION</Values>
+				</Input>
+				<Command>
+				   <SQL><![CDATA[GRANT CONNECTION "${objectname}" TO "${roleToGrant}" ${withAdminOptions}]]></SQL>
+				</Command>
+				<Confirm>
+					Grant connection ${objectname} to ${roleToGrant}?
+				</Confirm>
+				<Result>
+					Granted ${objectname} to ${roleToGrant}.
+				</Result>
+			 </Action> 
+			 
+			 <Action id="exasol-connection-revoke" label="Revoke Connection" reload="true" icon="remove">
+				<Input label="Connection Name" style="text" editable="false">
+					  <Default>${objectname}</Default>
+				   </Input>
+				<Input label="Revoke From" name="roleToRevoke" style="list">
+					<Values>
+					  <Command><SQL><![CDATA[
+							select 
+							GRANTEE
+							from
+							EXA_DBA_CONNECTION_PRIVS
+							where
+							GRANTED_CONNECTION = '${objectname}'
+					  ]]></SQL></Command>
+					</Values>
+				  </Input>
+				<Command>
+				   <SQL><![CDATA[REVOKE CONNECTION "${objectname}" FROM "${roleToRevoke}" ]]></SQL>
+				</Command>
+				<Confirm>
+					Revoke connection ${objectname} from ${roleToRevoke}?
+				</Confirm>
+				<Result>
+					Revoked ${objectname} from ${roleToRevoke}.
+				</Result>
+			 </Action> 
+			
+			<Action id="exasol-connection-comment" label="Comment Connection" reload="true" icon="comment">
+				<Input label="Connection" style="text" editable="false">
+				   <Default>${objectname}</Default>
+				</Input>
+				<Input label="Comment" name="comment" style="text"/>
+				<Command>
+				   <SQL><![CDATA[COMMENT ON CONNECTION "${objectname}" IS '${comment}']]></SQL>
+				</Command>
+				<Confirm>
+				   Confirm comment on connection ${objectname}?
+				</Confirm>
+				<Result>
+				   Comment on ${objectname} successful.
+				</Result>
+			</Action>
+		</If>
+		
+	  </ActionGroup>
+	  
       <ActionGroup type="Session">
          <If test="#SUPERUSER">
             <Action id="exasol-session-close" label="Kill Session" reload="true" icon="remove">
@@ -2770,6 +3430,8 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
          </If>
 		 
       </ActionGroup>
+	  
+	  
 
    </ObjectsActionDef>
 
@@ -3241,6 +3903,7 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
          <GroupNode type="Users" label="Users">
             <DataNode type="User" label="${exasol.getUsers.Name}" isLeaf="true">
                <SetVar name="objectname" value="${exasol.getUsers.Name}"/>
+			    <SetVar name="distinguishedName" value="${exasol.getUsers.Distinguished name}"/>
                <Command idref="exasol.getUsers"/>
             </DataNode>
          </GroupNode>
@@ -3255,9 +3918,11 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
             </DataNode>
          </GroupNode>
 
-		<GroupNode type="Connections" label="Connections">
-            <DataNode type="Connection" label="${exasol.getConnections.Name}" isLeaf="true">
+		<GroupNode type="Connections" label="Connections" icon="propsconnection">
+            <DataNode type="Connection" label="${exasol.getConnections.Name}" isLeaf="true" icon="propsconnection">
                <SetVar name="objectname" value="${exasol.getConnections.Name}"/>
+			   <SetVar name="constring" value="${exasol.getConnections.Connection String}"/>
+			   <SetVar name="uname" value="${exasol.getConnections.User name}"/>
                <Command idref="exasol.getConnections"/>
             </DataNode>
          </GroupNode>
@@ -4001,7 +4666,7 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
       <ObjectView type="User">
          <DataView id="exasol-user-info" icon="Info" label="Info" viewer="node-form"/>
 		 
-		 <DataView id="exasol-user-recursiveroles" icon="Groups" label="Granted Roles" viewer="grid">
+		 <DataView id="exasol-user-recursiveroles" icon="role" label="Granted Roles" viewer="grid">
             <Command idref="exasol.getRecursiveRolesOfUser"/>
 			<Message>
                <![CDATA[
@@ -4028,6 +4693,15 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
             </Message>
          </DataView>
 		 
+		 <DataView id="exasol-user-ownedschemas" icon="schema" label="Owned Schemas" viewer="grid">
+            <Command idref="exasol.getOwnedSchemas"/>
+			<Message>
+               <![CDATA[
+<html>Owned schemas of this user.</html>
+               ]]>
+            </Message>
+         </DataView>
+		 
 		<DataView id="exasol-user-recursiveconnections" icon="connection" label="Granted Connections" viewer="grid">
             <Command idref="exasol.getGrantedConnectionsRecursive"/>
 			<Message>
@@ -4047,12 +4721,68 @@ ALTER USER "${objectname}" IDENTIFIED BY "${newpassword}" REPLACE "${oldpassword
 
       <ObjectView icon="connection" type="Connection" >
          <DataView id="exasol-connection-info" icon="propsconnection" label="Connection" viewer="node-form"/>
+		 
+		 <DataView id="exasol-connections-grantees" icon="roles" label="Grantees" viewer="grid">
+            <Command idref="exasol.getConnectionGrantees"/>
+         </DataView>
+		 
       </ObjectView>
 
       <ObjectView type="Roles">
          <DataView id="exasol-roles-roles" icon="Groups" label="Roles" viewer="grid">
             <Command idref="exasol.getRoles"/>
          </DataView>
+		 
+      </ObjectView>
+	  
+	  <ObjectView type="Role">
+		<DataView id="exasol-role-info" icon="Info" label="Info" viewer="node-form"/>
+		
+		 <DataView id="exasol-role-recursiveroles" icon="role" label="Granted Roles" viewer="grid">
+            <Command idref="exasol.getRecursiveRolesOfRole"/>
+			<Message>
+               <![CDATA[
+<html>Granted roles for this role shown recursively.</html>
+               ]]>
+            </Message>
+         </DataView>
+		 
+		 <DataView id="exasol-role-recursivesystemprivs" icon="privileges" label="Granted System Privileges" viewer="grid">
+            <Command idref="exasol.getSystemPrivilegesRoleRecursive"/>
+			<Message>
+               <![CDATA[
+<html>Granted system privileges for this role shown recursively.</html>
+               ]]>
+            </Message>
+         </DataView>
+		 
+		 <DataView id="exasol-role-recursiveobjectprivs" icon="table" label="Granted Object Privileges" viewer="grid">
+            <Command idref="exasol.getObjectPrivilegesRoleRecursive"/>
+			<Message>
+               <![CDATA[
+<html>Granted object privileges for this role shown recursively.</html>
+               ]]>
+            </Message>
+         </DataView>
+		 
+		 <DataView id="exasol-role-ownedschemas" icon="schema" label="Owned Schemas" viewer="grid">
+            <Command idref="exasol.getOwnedSchemas"/>
+			<Message>
+               <![CDATA[
+<html>Owned schemas of this role.</html>
+               ]]>
+            </Message>
+         </DataView>
+		 
+		<DataView id="exasol-role-recursiveconnections" icon="connection" label="Granted Connections" viewer="grid">
+            <Command idref="exasol.getGrantedConnectionsRoleRecursive"/>
+			<Message>
+               <![CDATA[
+<html>Granted connections for this role shown recursively.</html>
+               ]]>
+            </Message>
+         </DataView>
+		 
       </ObjectView>
 
 
