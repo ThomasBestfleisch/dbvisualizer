@@ -1994,7 +1994,132 @@ ORDER BY parameter_name
             ]]>
 			</SQL>
 		</Command>
+		
+		<Command id="exasol.getSqlLastDay">
+			<SQL>
+				<![CDATA[
+			SELECT
+				"SESSION_ID" 'Session ID',
+				"STMT_ID" 'Stmt ID',
+				"COMMAND_NAME" 'Command name',
+				"COMMAND_CLASS" 'Command class',
+				"DURATION" 'Duration',
+				"START_TIME" 'Start time',
+				"STOP_TIME" 'Stop time',
+				"CPU" 'CPU',
+				"TEMP_DB_RAM_PEAK" 'Temp DB RAM Peak [MiB]',
+				"HDD_READ" 'HDD Read [MiB/sec]',
+				"HDD_WRITE" 'HDD Write [MiB/sec]',
+				"NET" 'Network [MiB/sec]',
+				"SUCCESS" 'Success',
+				"ERROR_CODE" 'Error code',
+				"ERROR_TEXT" 'Error text',
+				"PRIORITY" 'Priority',
+				"NICE" 'Nice',
+				"RESOURCES" 'Resources',
+				"ROW_COUNT" 'Row count',
+				"EXECUTION_MODE" 'Execution mode'
+			FROM
+				"EXA_STATISTICS"."EXA_SQL_LAST_DAY"
+			order by 
+					"START_TIME" desc
+            ]]>
+			</SQL>
+		</Command>
 
+		<Command id="exasol.getSqlHourly">
+			<SQL>
+				<![CDATA[
+				 SELECT
+					"INTERVAL_START" 'Time',
+					"COMMAND_NAME" 'Command name',
+					"COMMAND_CLASS" 'Command class',
+					"SUCCESS" 'Success',
+					"COUNT" 'Count',
+					"DURATION_AVG" 'Duration AVG',
+					"DURATION_MAX" 'Duration MAX',
+					"CPU_AVG" 'CPU AVG in %',
+					"CPU_MAX" 'CPU MAX in %',
+					"TEMP_DB_RAM_PEAK_AVG" 'Temp DB RAM Peak AVG [MiB]',
+					"TEMP_DB_RAM_PEAK_MAX" 'Temp DB RAM Peak MAX [MiB]',
+					"HDD_READ_AVG" 'HDD Read AVG [MiB/sec]',
+					"HDD_READ_MAX" 'HDD Read MAX [MiB/sec]',
+					"HDD_WRITE_AVG" 'HDD Write AVG [MiB/sec]',
+					"HDD_WRITE_MAX" 'HDD Write MAX [MiB/sec]',
+					"NET_AVG" 'Network AVG [MiB/sec]',
+					"NET_MAX" 'Network MAX [MiB/sec]',
+					"ROW_COUNT_AVG" 'Row count AVG',
+					"ROW_COUNT_MAX" 'Row count MAX',
+					"EXECUTION_MODE" 'Execution mode'
+				FROM
+					"EXA_STATISTICS"."EXA_SQL_HOURLY"
+				ORDER BY 1 DESC
+            ]]>
+			</SQL>
+		</Command>
+		
+		<Command id="exasol.getSqlDaily">
+			<SQL>
+				<![CDATA[
+				 SELECT
+					"INTERVAL_START" 'Time',
+					"COMMAND_NAME" 'Command name',
+					"COMMAND_CLASS" 'Command class',
+					"SUCCESS" 'Success',
+					"COUNT" 'Count',
+					"DURATION_AVG" 'Duration AVG',
+					"DURATION_MAX" 'Duration MAX',
+					"CPU_AVG" 'CPU AVG in %',
+					"CPU_MAX" 'CPU MAX in %',
+					"TEMP_DB_RAM_PEAK_AVG" 'Temp DB RAM Peak AVG [MiB]',
+					"TEMP_DB_RAM_PEAK_MAX" 'Temp DB RAM Peak MAX [MiB]',
+					"HDD_READ_AVG" 'HDD Read AVG [MiB/sec]',
+					"HDD_READ_MAX" 'HDD Read MAX [MiB/sec]',
+					"HDD_WRITE_AVG" 'HDD Write AVG [MiB/sec]',
+					"HDD_WRITE_MAX" 'HDD Write MAX [MiB/sec]',
+					"NET_AVG" 'Network AVG [MiB/sec]',
+					"NET_MAX" 'Network MAX [MiB/sec]',
+					"ROW_COUNT_AVG" 'Row count AVG',
+					"ROW_COUNT_MAX" 'Row count MAX',
+					"EXECUTION_MODE" 'Execution mode'
+				FROM
+					"EXA_STATISTICS"."EXA_SQL_DAILY"
+				ORDER BY 1 DESC
+            ]]>
+			</SQL>
+		</Command>
+		
+		<Command id="exasol.getSqlMonthly">
+			<SQL>
+				<![CDATA[
+				 SELECT
+					"INTERVAL_START" 'Time',
+					"COMMAND_NAME" 'Command name',
+					"COMMAND_CLASS" 'Command class',
+					"SUCCESS" 'Success',
+					"COUNT" 'Count',
+					"DURATION_AVG" 'Duration AVG',
+					"DURATION_MAX" 'Duration MAX',
+					"CPU_AVG" 'CPU AVG in %',
+					"CPU_MAX" 'CPU MAX in %',
+					"TEMP_DB_RAM_PEAK_AVG" 'Temp DB RAM Peak AVG [MiB]',
+					"TEMP_DB_RAM_PEAK_MAX" 'Temp DB RAM Peak MAX [MiB]',
+					"HDD_READ_AVG" 'HDD Read AVG [MiB/sec]',
+					"HDD_READ_MAX" 'HDD Read MAX [MiB/sec]',
+					"HDD_WRITE_AVG" 'HDD Write AVG [MiB/sec]',
+					"HDD_WRITE_MAX" 'HDD Write MAX [MiB/sec]',
+					"NET_AVG" 'Network AVG [MiB/sec]',
+					"NET_MAX" 'Network MAX [MiB/sec]',
+					"ROW_COUNT_AVG" 'Row count AVG',
+					"ROW_COUNT_MAX" 'Row count MAX',
+					"EXECUTION_MODE" 'Execution mode'
+				FROM
+					"EXA_STATISTICS"."EXA_SQL_MONTHLY"
+				ORDER BY 1 DESC
+            ]]>
+			</SQL>
+		</Command>
+		
 		<!-- ================================================================= -->
 		<!-- Scripts and UDF related  -->
 		<!-- ================================================================= -->
@@ -2338,21 +2463,7 @@ REGEXP_REPLACE(SCRIPT_TEXT,'^CREATE ','CREATE /*OR REPLACE*/ ') || '
 				</Result>
 			</Action> 
 
-			<Action id="exasol-virtualschema-comment" label="Comment Virtual Schema" reload="true" resetschemas="true" icon="comment">
-				<Input label="Schema" style="text" editable="false">
-					<Default>${schema}</Default>
-				</Input>
-				<Input label="Comment" name="comment" style="text"/>
-				<Command>
-					<SQL><![CDATA[COMMENT ON SCHEMA "${schema}" IS '${comment}']]></SQL>
-				</Command>
-				<Confirm>
-					Confirm comment on schema ${objectname}?
-				</Confirm>
-				<Result>
-					Comment on ${objectname} successful.
-				</Result>
-			</Action>
+
 
 			<Action id="exasol-virtualschema-rename" label="Rename Virtual Schema" reload="true" resetschemas="true" icon="rename">
 				<Input label="Schema" style="text" editable="false">
@@ -2448,6 +2559,22 @@ REGEXP_REPLACE(SCRIPT_TEXT,'^CREATE ','CREATE /*OR REPLACE*/ ') || '
 				</Confirm>
 				<Result>
 					Revoked object privileges for ${schema}.${objectname}.
+				</Result>
+			</Action>
+			
+			<Action id="exasol-virtualschema-comment" label="Comment Virtual Schema" reload="true" resetschemas="true" icon="comment">
+				<Input label="Schema" style="text" editable="false">
+					<Default>${schema}</Default>
+				</Input>
+				<Input label="Comment" name="comment" style="text"/>
+				<Command>
+					<SQL><![CDATA[COMMENT ON SCHEMA "${schema}" IS '${comment}']]></SQL>
+				</Command>
+				<Confirm>
+					Confirm comment on schema ${objectname}?
+				</Confirm>
+				<Result>
+					Comment on ${objectname} successful.
 				</Result>
 			</Action>
 			
@@ -2686,6 +2813,25 @@ REGEXP_REPLACE(SCRIPT_TEXT,'^CREATE ','CREATE /*OR REPLACE*/ ') || '
 				</Result>
 			</Action>
 
+			<Action id="exasol-table-comment" label="Comment Table" reload="true" icon="comment">
+				<Input label="Schema" style="text" editable="false">
+					<Default>${schema}</Default>
+				</Input>
+				<Input label="Table" style="text" editable="false">
+					<Default>${objectname}</Default>
+				</Input>
+				<Input label="Comment" name="comment" style="text"/>
+				<Command>
+					<SQL><![CDATA[COMMENT ON TABLE "${schema}"."${objectname}" IS '${comment}']]></SQL>
+				</Command>
+				<Confirm>
+					Confirm comment on table ${objectname}?
+				</Confirm>
+				<Result>
+					Comment on ${objectname} successful.
+				</Result>
+			</Action>
+			
 			<Separator/>
 
 			<If test="#util.isLicensed()">
@@ -2718,6 +2864,9 @@ REGEXP_REPLACE(SCRIPT_TEXT,'^CREATE ','CREATE /*OR REPLACE*/ ') || '
 				</Action>
 			</Else>
 
+			
+			
+			
 			<Separator/>
 
 			<Action id="exasol-table-script-builder" label="Script Table" icon="scriptObject"
@@ -2920,7 +3069,88 @@ END;
 					Function ${schema}.${objectname} has been dropped!
 				</Result>
 			</Action>
+			
+			<Action id="exasol-function-grant" label="Grant Privileges" icon="privileges">
+				<Input label="Schema" style="text" editable="false">
+					<Default>${schema}</Default>
+				</Input>
+				<Input label="Table" style="text" editable="false">
+					<Default>${objectname}</Default>
+				</Input>
 
+				<Input label="Object Privileges" name="privs" style="list">
+					<Values>
+						EXECUTE
+					</Values>
+				</Input>
+
+				<Input label="Grantee" name="grantee" style="check-list">
+					<Arg name="output" value='"${value}"'/>
+					<Arg name="newline" value=", "/>
+					<Values>
+						<Command><SQL><![CDATA[select user_name as 'Grantee' from exa_all_users union all select role_name as 'Grantee' from exa_all_roles order by 1]]></SQL></Command>
+					</Values>
+				</Input>
+
+				<Command><SQL><![CDATA[GRANT ${privs} ON "${schema}"."${objectname}" TO ${grantee}]]></SQL></Command>
+				<Confirm>
+					Really grant object privileges for ${schema}.${objectname}?
+				</Confirm>
+				<Result>
+					Granted object privileges for ${schema}.${objectname}.
+				</Result>
+			</Action>
+
+			<Action id="exasol-function-revoke" label="Revoke Privileges" icon="remove">
+				<Input label="Schema" style="text" editable="false">
+					<Default>${schema}</Default>
+				</Input>
+				<Input label="Table" style="text" editable="false">
+					<Default>${objectname}</Default>
+				</Input>
+
+				<Input label="Object Privileges" name="privs" style="check-list">
+					<Values>
+						EXECUTE
+					</Values>
+				</Input>
+
+				<Input label="Grantee" name="grantee" style="check-list">
+					<Arg name="output" value='"${value}"'/>
+					<Arg name="newline" value=", "/>
+					<Values>
+						<Command><SQL><![CDATA[select user_name as 'Grantee' from exa_all_users union all select role_name as 'Grantee' from exa_all_roles order by 1]]></SQL></Command>
+					</Values>
+				</Input>
+
+				<Command><SQL><![CDATA[REVOKE ${privs} ON "${schema}"."${objectname}" FROM ${grantee}]]></SQL></Command>
+				<Confirm>
+					Really revoke object privileges for ${schema}.${objectname}?
+				</Confirm>
+				<Result>
+					Revoked object privileges for ${schema}.${objectname}.
+				</Result>
+			</Action>
+			
+			<Action id="exasol-function-comment" label="Comment Function" reload="true" icon="comment">
+				<Input label="Schema" style="text" editable="false">
+					<Default>${schema}</Default>
+				</Input>
+				<Input label="Table" style="text" editable="false">
+					<Default>${objectname}</Default>
+				</Input>
+				<Input label="Comment" name="comment" style="text"/>
+				<Command>
+					<SQL><![CDATA[COMMENT ON FUNCTION "${schema}"."${objectname}" IS '${comment}']]></SQL>
+				</Command>
+				<Confirm>
+					Confirm comment on function ${objectname}?
+				</Confirm>
+				<Result>
+					Comment on ${objectname} successful.
+				</Result>
+			</Action>
+			
 		</ActionGroup>
 
 		<ActionGroup type="Script">
@@ -2985,6 +3215,26 @@ END;
 					Revoked object privileges for ${schema}.${objectname}.
 				</Result>
 			</Action>
+			
+			<Action id="exasol-script-comment" label="Comment Script" reload="true" icon="comment">
+				<Input label="Schema" style="text" editable="false">
+					<Default>${schema}</Default>
+				</Input>
+				<Input label="Table" style="text" editable="false">
+					<Default>${objectname}</Default>
+				</Input>
+				<Input label="Comment" name="comment" style="text"/>
+				<Command>
+					<SQL><![CDATA[COMMENT ON SCRIPT "${schema}"."${objectname}" IS '${comment}']]></SQL>
+				</Command>
+				<Confirm>
+					Confirm comment on script ${objectname}?
+				</Confirm>
+				<Result>
+					Comment on ${objectname} successful.
+				</Result>
+			</Action>
+			
 		</ActionGroup>
 		
 		<!-- =================================================================== -->
@@ -4385,6 +4635,7 @@ END;
 			<GroupNode type="DBSize" label="DB Size" icon="diskio" isLeaf="true"/>
 			<GroupNode type="Usage" label="Usage" icon="usage" isLeaf="true"/>
 			<GroupNode type="Monitoring" label="Monitoring" icon="resourcemanager" isLeaf="true"/>
+			<GroupNode type="SQL Statistics" label="SQL Statistics" icon="propssqlhistory" isLeaf="true"/>
 			<GroupNode type="System" label="System" isLeaf="true"/>
 			<GroupNode type="Locks" label="Locks" isLeaf="true"/>
 
@@ -4557,15 +4808,13 @@ END;
 
 			</DataView>
 
-			<!--<If test="${isVirtual} eq false">-->
 			<DataView id="exasol-table-indices" icon="index" label="Indices" viewer="grid">
 				<Command idref="exasol.getTableIndices">
 					<Input name="schema" value="${schema}"/>
 					<Input name="objectname" value="${objectname}"/>
 				</Command>
 			</DataView>
-			<!--</If>-->
-
+			
 			<DataView id="exasol-table-size" icon="storage" label="Size" viewer="form">
 				<Command idref="exasol.getTableSize">
 					<Input name="schema" value="${schema}"/>
@@ -4984,6 +5233,22 @@ END;
 		<ObjectView type="Function">
 			<DataView id="exasol-function-info" icon="Info" label="Info" viewer="node-form"/>
 
+			<DataView id="exasol-function-grants" icon="TablePrivileges" label="Grants" viewer="grid">
+				<Command idref="exasol.getTableGrants">
+					<Input name="schema" value="${schema}"/>
+					<Input name="objectname" value="${objectname}"/>
+				</Command>
+
+				<Message>
+					<![CDATA[
+				<html>
+				This view shows the grants for this function as shown in EXA_[ALL|DBA]_OBJ_PRIVS.
+				</html>
+               ]]>
+				</Message>
+
+			</DataView>
+			
 			<DataView id="exasol-function-ddl" icon="Source" label="DDL" viewer="text">
 				<Input name="dataColumn" value="TEXT"/>
 				<Input name="formatSQL" value="false"/>
@@ -5133,6 +5398,23 @@ END;
 					<Input name="script_name" value="${objectname}"/>
 				</Command>
 			</DataView>
+			
+			<DataView id="exasol-script-grants" icon="TablePrivileges" label="Grants" viewer="grid">
+				<Command idref="exasol.getTableGrants">
+					<Input name="schema" value="${schema}"/>
+					<Input name="objectname" value="${objectname}"/>
+				</Command>
+
+				<Message>
+					<![CDATA[
+				<html>
+				This view shows the grants for this script as shown in EXA_[ALL|DBA]_OBJ_PRIVS.
+				</html>
+               ]]>
+				</Message>
+
+			</DataView>
+			
 			<DataView id="exasol-scripts-ddl"  icon="Source" label="DDL" viewer="text">
 
 				<Input name="dataColumn" value="TEXT"/>
@@ -5451,6 +5733,25 @@ END;
 
 			<DataView id="exasol-monitoring-monthly" icon="resourcemanager" label="Monitoring monthly" viewer="grid">
 				<Command idref="exasol.getMonitorMonthly"/>
+			</DataView>
+
+		</ObjectView>
+		
+		<ObjectView type="SQL Statistics">
+			<DataView id="exasol-sqls-lastday" icon="propssqlhistory" label="SQL Statistics last day" viewer="grid">
+				<Command idref="exasol.getSqlLastDay"/>
+			</DataView>
+
+			<DataView id="exasol-sqls-hourly" icon="propssqlhistory" label="SQL Statistics hourly" viewer="grid">
+				<Command idref="exasol.getSqlHourly"/>
+			</DataView>
+
+			<DataView id="exasol-sqls-daily" icon="propssqlhistory" label="SQL Statistics daily" viewer="grid">
+				<Command idref="exasol.getSqlDaily"/>
+			</DataView>
+
+			<DataView id="exasol-sqls-monthly" icon="propssqlhistory" label="SQL Statistics monthly" viewer="grid">
+				<Command idref="exasol.getSqlMonthly"/>
 			</DataView>
 
 		</ObjectView>
